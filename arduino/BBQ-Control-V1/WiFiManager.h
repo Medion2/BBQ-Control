@@ -1,0 +1,9 @@
+#pragma once
+#include <Arduino.h>
+void wifiBegin();
+void wifiUpdate();
+bool wifiConnected();
+String wifiStatusText();
+String wifiAddress();
+String wifiSsid();
+int32_t wifiRssi();
