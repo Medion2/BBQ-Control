@@ -1,0 +1,105 @@
+blueprint:
+  name: BBQ Control 1.0 – Meater über MQTT
+  description: >-
+    Sendet vollständige Meater-Datensätze an die Smart 86 Box. Benötigt eine
+    eingerichtete MQTT-Integration. Temperaturen werden von °F nach °C umgerechnet.
+    Optionale Werte bleiben null. Keine Akkuschätzung ohne Sensor.
+  domain: automation
+  input:
+    core_entity:
+      name: Kerntemperatur
+      selector:
+        entity:
+          filter:
+            - domain: sensor
+              device_class: temperature
+    ambient_entity:
+      name: Garraumtemperatur
+      selector:
+        entity:
+          filter:
+            - domain: sensor
+              device_class: temperature
+    target_entity:
+      name: Zieltemperatur (optional)
+      description: Leer lassen oder eine Entität wählen; bei mehreren wird die erste verwendet.
+      default: []
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain: [sensor, number, input_number]
+    cook_entity:
+      name: Garstatus (optional)
+      description: Leer lassen oder eine Entität wählen; bei mehreren wird die erste verwendet.
+      default: []
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain: sensor
+    battery_entity:
+      name: Meater-Akku in Prozent (optional)
+      description: Die Standard-Meater-Cloud-Integration bietet keinen Akkusensor. Leer lassen oder eine Prozent-Entität wählen; bei mehreren wird die erste verwendet.
+      default: []
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain: sensor
+    source_timeout:
+      name: Maximales Alter der Temperaturmeldungen (Sekunden)
+      default: 120
+      selector:
+        number:
+          min: 30
+          max: 900
+          step: 30
+          mode: box
+variables:
+  core_entity: !input core_entity
+  ambient_entity: !input ambient_entity
+  target_selection: !input target_entity
+  cook_selection: !input cook_entity
+  battery_selection: !input battery_entity
+  target_entity: "{{ target_selection | first | default('') }}"
+  cook_entity: "{{ cook_selection | first | default('') }}"
+  battery_entity: "{{ battery_selection | first | default('') }}"
+  source_timeout: !input source_timeout
+triggers:
+  - trigger: homeassistant
+    event: start
+  - trigger: time_pattern
+    seconds: "/30"
+  - trigger: state
+    entity_id: !input core_entity
+  - trigger: state
+    entity_id: !input ambient_entity
+  - trigger: mqtt
+    topic: bbq/control/v1/availability
+    payload: online
+actions:
+  - action: mqtt.publish
+    data:
+      topic: bbq/control/v1/meater/state
+      qos: 1
+      retain: false
+      payload: >-
+        {% set c = states(core_entity) | float(none) %}
+        {% set a = states(ambient_entity) | float(none) %}
+        {% set t = (states(target_entity) | float(none)) if target_entity else none %}
+        {% set b = (states(battery_entity) | float(none)) if battery_entity else none %}
+        {% set ct = as_timestamp(states[core_entity].last_reported, 0) if has_value(core_entity) else 0 %}
+        {% set at = as_timestamp(states[ambient_entity].last_reported, 0) if has_value(ambient_entity) else 0 %}
+        {% set age_c = as_timestamp(now()) - ct %}
+        {% set age_a = as_timestamp(now()) - at %}
+        {{ {
+          'schema': 1,
+          'probe_online': c is number and a is number and 0 <= age_c <= source_timeout and 0 <= age_a <= source_timeout,
+          'core_c': ((c - 32) * 5 / 9 if state_attr(core_entity, 'unit_of_measurement') == '°F' else c) if c is number else none,
+          'ambient_c': ((a - 32) * 5 / 9 if state_attr(ambient_entity, 'unit_of_measurement') == '°F' else a) if a is number else none,
+          'target_c': ((t - 32) * 5 / 9 if state_attr(target_entity, 'unit_of_measurement') == '°F' else t) if t is number else none,
+          'cook_state': states(cook_entity) if cook_entity and has_value(cook_entity) else none,
+          'battery_pct': b
+        } | to_json }}
+mode: restart

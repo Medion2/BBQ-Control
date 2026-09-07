@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include <stddef.h>
 #include <math.h>
 struct ProbeData {
   float core = NAN, ambient = NAN, target = NAN, battery = NAN;
@@ -12,3 +13,4 @@ const ProbeData &probeData();
 bool probeFresh(uint32_t now);
 // Main-loop access only; MQTT callbacks must hand data through a queue.
 void probeSet(const ProbeData &value);
+bool probeParse(const char *json, size_t length, uint32_t now, ProbeData &value);
