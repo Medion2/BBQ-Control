@@ -22,3 +22,15 @@ arduino-cli compile --fqbn esp32:esp32:esp32s3:PSRAM=opi,CDCOnBoot=cdc,FlashSize
 
 Keine RS485-, Wechselrichter- oder ESPHome-Funktionen.
 Ein erfolgreicher Build ersetzt keinen Test auf dem physischen Board.
+
+## Bedienung und Tests
+
+Nach dem Bootlogo: Displaytest, Hardware, Touchtest und Grafiktest.
+Unten links/rechts wechseln; alternativ `p` / `n` im seriellen Monitor (115200).
+Der Touchtest zeigt Koordinaten, Kontaktanzahl und I2C-Fehler. Bei Adressvariante
+kann Config::TouchAddress auf 0x14 gesetzt werden; der Reset bleibt unveraendert.
+Die Koordinatenbytes ab 0x8150 werden gemaess GT911-Registertabelle ausgewertet
+(https://www.crystalfontz.com/controllers/GOODIX/GT911ProgrammingGuide/478/).
+Kein neuer Touchdatensatz wird nicht als Loslassen interpretiert.
+UI FPS misst die ausgefuehrten UI-Zyklen, nicht die physische Panel-Bildfrequenz.
+Heap und PSRAM werden nach der Displayinitialisierung live abgefragt.
