@@ -34,3 +34,24 @@ Die Koordinatenbytes ab 0x8150 werden gemaess GT911-Registertabelle ausgewertet
 Kein neuer Touchdatensatz wird nicht als Loslassen interpretiert.
 UI FPS misst die ausgefuehrten UI-Zyklen, nicht die physische Panel-Bildfrequenz.
 Heap und PSRAM werden nach der Displayinitialisierung live abgefragt.
+
+## WLAN und Uhr
+
+In Config.h WiFiSsid und WiFiPassword lokal eintragen und Sketch neu hochladen.
+Keine echten Zugangsdaten committen. Leere SSID deaktiviert Verbindungsversuche.
+Verbindungsversuche haben 15 Sekunden Zeit; erneuter Versuch nach 30 Sekunden.
+Display und Touch bleiben dabei aktiv. Es wird kein Setup-Access-Point gestartet.
+Weitere Seiten: WLAN/NTP, digitale Uhr und analoge Uhr.
+NTP startet bei WLAN-Verbindung und synchronisiert stuendlich. Vor dem ersten
+Zeitabgleich wird keine erfundene Uhrzeit angezeigt. Nach Verbindungsverlust
+laeuft die Systemuhr weiter; der Offline-Status bleibt sichtbar.
+Die voreingestellte POSIX-Zeitzone bildet CET/CEST mit Sommerzeitwechsel ab.
+
+## Pruefung auf dem Board
+
+1. Bootlogo, vollstaendigen Rand, Farb- und Graubalken pruefen.
+2. Heap/PSRAM pruefen, insbesondere ob OPI PSRAM erkannt wird.
+3. Touch-Raster an allen Ecken, Ziehen und genau einen Seitenwechsel pro Tippen testen.
+4. Grafikseite: bewegter Ball, Linien, Kreis, Dreieck und UI-FPS beobachten.
+5. WLAN konfigurieren, IP/RSSI sowie NTP-Abgleich abwarten.
+6. Digitale und analoge Zeit vergleichen; WLAN kurz abschalten und Wiederverbindung testen.

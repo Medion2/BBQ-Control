@@ -2,14 +2,17 @@
 #include "Config.h"
 #include "Display.h"
 #include "Touch.h"
+#include "WiFiManager.h"
+#include "Clock.h"
+#include <math.h>
 namespace {
-enum Page { DisplayTest, Hardware, TouchTest, GraphicTest, PageCount };
+enum Page { DisplayTest, Hardware, TouchTest, GraphicTest, Network, DigitalClock, AnalogClock, PageCount };
 Page page = DisplayTest;
 uint32_t bootAt, frameAt, fpsAt, frames = 0, metricsAt = 0;
 float fps = 0;
 bool booting = true, dirty = true;
 int ballX = 80, ballY = 140, dx = 4, dy = 3;
-const char *titles[] = {"Displaytest", "Hardware", "Touchtest", "Grafiktest"};
+const char *titles[] = {"Displaytest", "Hardware", "Touchtest", "Grafiktest", "WLAN / NTP", "Digitale Uhr", "Analoge Uhr"};
 void text(int x, int y, const String &s, uint8_t size = 2, uint16_t color = Config::White) {
   gfx->setTextSize(size); gfx->setTextColor(color); gfx->setCursor(x,y); gfx->print(s);
 }
@@ -62,6 +65,55 @@ void touchDraw() {
   text(16,355,"X:"+String(t.x)+" Y:"+String(t.y)+" Punkte:"+String(t.points));
   text(16,378,String(t.down ? "DOWN" : "UP")+" / I2C-Fehler: "+String(t.errors),1);
 }
+void network() {
+  gfx->fillRect(10,65,460,330,Config::Background);
+  text(16,80,wifiStatusText());
+  text(16,120,"SSID: "+wifiSsid().substring(0,30),1);
+  text(16,150,"IP: "+wifiAddress());
+  text(16,190,wifiConnected() ? "RSSI: "+String(wifiRssi())+" dBm" : "RSSI: --");
+  text(16,235,clockStatusText());
+  text(16,280,"Zeitzone: Europa/Berlin",2);
+  text(16,315,"WLAN in Config.h eintragen.",2);
+  text(16,350,"Automatische Wiederverbindung",2);
+  text(16,380,"NTP-Abgleich stuendlich",1);
+}
+void hand(float angle, int length, uint16_t color) {
+  gfx->drawLine(240,220,240+int(sinf(angle)*length),220-int(cosf(angle)*length),color);
+}
+void clockFace(bool analog) {
+  gfx->fillRect(0,55,480,340,Config::Background);
+  tm local = {};
+  if (!clockLocalTime(local)) {
+    text(55,185,"Warte auf NTP-Zeit",3);
+    text(25,250,clockStatusText(),2);
+    return;
+  }
+  char clockBuffer[16], dateBuffer[24];
+  strftime(clockBuffer,sizeof(clockBuffer),"%H:%M:%S",&local);
+  strftime(dateBuffer,sizeof(dateBuffer),"%d.%m.%Y",&local);
+  if (analog) {
+    constexpr float tau=6.28318530718f;
+    gfx->drawCircle(240,220,135,Config::White);
+    for(int i=0;i<60;++i) {
+      float a=i*tau/60;
+      int inner=i%5==0 ? 119 : 128;
+      gfx->drawLine(240+int(sinf(a)*inner),220-int(cosf(a)*inner),
+                    240+int(sinf(a)*133),220-int(cosf(a)*133),Config::White);
+    }
+    text(228,105,"12",2); text(344,212,"3",2);
+    text(234,317,"6",2); text(127,212,"9",2);
+    hand(((local.tm_hour%12)+local.tm_min/60.0f)*tau/12,72,Config::White);
+    hand((local.tm_min+local.tm_sec/60.0f)*tau/60,104,Config::Accent);
+    hand(local.tm_sec*tau/60,115,0xF800);
+    gfx->fillCircle(240,220,5,Config::White);
+    text(180,361,dateBuffer,2);
+  } else {
+    text(72,155,clockBuffer,7,Config::Accent);
+    text(150,245,dateBuffer,3);
+    text(95,295,local.tm_isdst>0 ? "Sommerzeit / CEST" : "Winterzeit / CET",2);
+  }
+  text(16,383,clockStatusText(),1);
+}
 void graphicBackground() {
   gfx->drawRect(20,70,440,300,Config::Accent);
   gfx->drawTriangle(240,95,190,180,290,180,0xFFE0);
@@ -106,6 +158,8 @@ void graphicsUpdate() {
     if(page==Hardware) hardware();
     if(page==TouchTest) touchBackground();
     if(page==GraphicTest) graphicBackground();
+    if(page==Network) network();
+    if(page==DigitalClock || page==AnalogClock) clockFace(page==AnalogClock);
     dirty=false;
   }
   if(page==TouchTest) touchDraw();
@@ -115,6 +169,8 @@ void graphicsUpdate() {
   if(now-metricsAt>=1000) {
     metricsAt=now;
     if(page==Hardware) hardware();
+    if(page==Network) network();
+    if(page==DigitalClock || page==AnalogClock) clockFace(page==AnalogClock);
     gfx->fillRect(0,400,480,35,Config::Background);
     text(12,405,"UI FPS: "+String(fps,1)+" Heap: "+String(ESP.getFreeHeap()/1024)+"K",2,Config::Accent);
     text(12,424,"PSRAM frei: "+String(ESP.getFreePsram()/1024)+" KiB",1);
