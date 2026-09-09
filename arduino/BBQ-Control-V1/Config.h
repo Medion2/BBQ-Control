@@ -9,21 +9,17 @@
 #ifndef BBQ_WIFI_PASSWORD
 #define BBQ_WIFI_PASSWORD ""
 #endif
-#ifndef BBQ_MQTT_HOST
-#define BBQ_MQTT_HOST ""
+#ifndef BBQ_HA_TOKEN
+#define BBQ_HA_TOKEN ""
 #endif
-#ifndef BBQ_MQTT_USER
-#define BBQ_MQTT_USER ""
+#ifndef BBQ_HA_PROBE
+#define BBQ_HA_PROBE "meater_1"
 #endif
-#ifndef BBQ_MQTT_PASSWORD
-#define BBQ_MQTT_PASSWORD ""
-#endif
-// Compile-only configuration to check enabled network paths; never upload it.
 #ifdef BBQ_NETWORK_COMPILE_TEST
 #undef BBQ_WIFI_SSID
-#undef BBQ_MQTT_HOST
+#undef BBQ_HA_TOKEN
 #define BBQ_WIFI_SSID "compile-only"
-#define BBQ_MQTT_HOST "192.0.2.1"
+#define BBQ_HA_TOKEN "compile-only"
 #endif
 namespace Config {
 constexpr char WiFiSsid[] = BBQ_WIFI_SSID;
@@ -32,12 +28,8 @@ constexpr uint32_t WiFiTimeoutMs = 15000, WiFiRetryMs = 30000;
 constexpr uint16_t Background = 0x0841, White = 0xFFFF, Muted = 0x94B2;
 constexpr uint16_t Accent = 0xFD20, Good = 0x4EAA, Panel = 0x18E3;
 constexpr uint32_t StaleMs = 90000;
-constexpr char MqttHost[] = BBQ_MQTT_HOST;
-constexpr uint16_t MqttPort = 1883;
-constexpr char MqttUser[] = BBQ_MQTT_USER;
-constexpr char MqttPassword[] = BBQ_MQTT_PASSWORD;
-constexpr char StateTopic[] = "bbq/control/v1/meater/state";
-constexpr char AvailabilityTopic[] = "bbq/control/v1/availability";
-constexpr char HaStatusTopic[] = "homeassistant/status";
+constexpr char HaUrl[] = "http://192.168.178.200:8123";
+constexpr char HaToken[] = BBQ_HA_TOKEN;
+constexpr char HaProbe[] = BBQ_HA_PROBE;
 constexpr size_t MaxPayload = 1024;
 }

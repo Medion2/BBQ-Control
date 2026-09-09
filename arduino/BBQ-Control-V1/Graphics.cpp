@@ -3,7 +3,7 @@
 #include "Config.h"
 #include "ProbeData.h"
 #include "WiFiManager.h"
-#include "MqttManager.h"
+#include "HomeAssistant.h"
 namespace {
 uint32_t lastDraw = 0;
 void text(int x, int y, const String &value, uint8_t size, uint16_t color) {
@@ -31,7 +31,7 @@ String status(const ProbeData &d, bool fresh) {
   return s.length() ? s : "Garstatus unbekannt";
 }
 void values() {
-  const auto &d=probeData(); bool fresh=probeFresh(millis()) && mqttLive();
+  const auto &d=probeData(); bool fresh=probeFresh(millis()) && haLive();
   gfx->fillRect(16,110,448,135,Config::Background);
   String value=temperature(d.core,fresh);
   uint8_t size=value.length()>5 ? 8 : 10;
@@ -49,7 +49,7 @@ void values() {
   if(batteryValid) gfx->fillRect(21,423,int(26*d.battery/100),10,d.battery<20?0xF800:Config::Good);
   text(63,420,"MEATER "+(batteryValid?String(d.battery,0)+" %":String("--")),2,Config::Muted);
   text(18,452,wifiConnected()?"WLAN verbunden":"WLAN offline",1,Config::Muted);
-  text(250,452,mqttStatusText(),1,Config::Muted);
+  text(250,452,String(Config::HaProbe),1,Config::Muted);
   text(18,467,haStatusText(),1,Config::Muted);
 }
 }
