@@ -1,6 +1,7 @@
 #include "HomeAssistant.h"
 #include "Config.h"
 #include "ProbeData.h"
+#include "HaTemplate.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include "cJSON.h"
@@ -10,23 +11,30 @@
 namespace {
 QueueHandle_t inbox=nullptr;
 std::atomic<int> result{0};
-// Render only the chosen probe's states on HA; never download all HA entities.
+struct Snapshot { ProbeData probes[5]; };
+Snapshot latest;unsigned selected=0;
+const char* prefixes[]={"meater_1","meater_2","meater_3","meater_4","meater_probe_0ae3b60f"};
 String requestBody() {
-  String t="{% set p = 'sensor.";
-  t+=Config::HaProbe;
-  t+="_' %}{% set c = states(p ~ 'innentemperatur') | float(none) %}"
-     "{% set a = states(p ~ 'umgebungstemperatur') | float(none) %}"
-     "{{ {'schema':1, 'probe_online':c is number and a is number,"
-     "'core_c':c, 'ambient_c':a,"
-     "'target_c':states(p ~ 'soll_temperatur') | float(none),"
-     "'cook_state':states(p ~ 'kochstatus') if has_value(p ~ 'kochstatus') else none,"
-     "'battery_pct':none} | to_json }}";
-  cJSON *root=cJSON_CreateObject();
-  if(!root) return "";
-  cJSON_AddStringToObject(root,"template",t.c_str());
-  char *json=cJSON_PrintUnformatted(root);
-  String body=json?json:"";
-  cJSON_free(json); cJSON_Delete(root); return body;
+ cJSON *root=cJSON_CreateObject();if(!root)return "";
+ cJSON_AddStringToObject(root,"template",HaTemplate);
+ char *json=cJSON_PrintUnformatted(root);String body=json?json:"";
+ cJSON_free(json);cJSON_Delete(root);return body;
+}
+float optionalNumber(cJSON *r,const char *name,float max){
+ cJSON *v=cJSON_GetObjectItemCaseSensitive(r,name);
+ return cJSON_IsNumber(v)&&isfinite(v->valuedouble)&&v->valuedouble>=0&&v->valuedouble<=max?v->valuedouble:NAN;
+}
+bool parse(const String &payload,Snapshot &out){
+ if(payload.length()>4096)return false;
+ cJSON *root=cJSON_Parse(payload.c_str());bool valid=cJSON_IsArray(root)&&cJSON_GetArraySize(root)==5;
+ for(int i=0;valid&&i<5;++i){
+  cJSON *row=cJSON_GetArrayItem(root,i);char *json=cJSON_PrintUnformatted(row);
+  valid=json&&probeParse(json,strlen(json),millis(),out.probes[i]);cJSON_free(json);
+  if(valid){auto &d=out.probes[i];d.peak=optionalNumber(row,"peak_c",150);d.remaining=optionalNumber(row,"remaining_s",604800);d.elapsed=optionalNumber(row,"elapsed_s",604800);
+   cJSON *v=cJSON_GetObjectItemCaseSensitive(row,"cooking");if(cJSON_IsString(v)){strlcpy(d.cooking,v->valuestring,sizeof(d.cooking));for(char &c:d.cooking)if((unsigned char)c>126||(c&&c<32))c='?';}
+  }
+ }
+ cJSON_Delete(root);return valid;
 }
 void worker(void *) {
   const String body=requestBody();
@@ -35,7 +43,7 @@ void worker(void *) {
       WiFiClient socket; HTTPClient http;
       http.setConnectTimeout(3000); http.setTimeout(3000);
       http.setFollowRedirects(HTTPC_DISABLE_FOLLOW_REDIRECTS);
-      ProbeData next;
+      Snapshot next;
       int code=-1;
       if(http.begin(socket,String(Config::HaUrl)+"/api/template")) {
         http.addHeader("Authorization",String("Bearer ")+Config::HaToken);
@@ -43,7 +51,7 @@ void worker(void *) {
         code=http.POST(body);
         if(code==200) {
           String payload=http.getString();
-          if(!probeParse(payload.c_str(),payload.length(),millis(),next)) code=-2;
+          if(!parse(payload,next)) { code=-2; next=Snapshot{}; }
         }
         http.end();
       }
@@ -55,14 +63,15 @@ void worker(void *) {
 }
 }
 void haBegin() {
+  for(unsigned i=0;i<5;++i)if(!strcmp(Config::HaProbe,prefixes[i]))selected=i;
   if(!Config::HaToken[0]) return;
-  inbox=xQueueCreate(1,sizeof(ProbeData));
+  inbox=xQueueCreate(1,sizeof(Snapshot));
   if(!inbox) { result=-3; return; }
   if(xTaskCreate(worker,"ha-read",8192,nullptr,1,nullptr)!=pdPASS) result=-3;
 }
 void haUpdate() {
-  ProbeData next;
-  if(inbox && xQueueReceive(inbox,&next,0)==pdTRUE) probeSet(next);
+  Snapshot next;
+  if(inbox && xQueueReceive(inbox,&next,0)==pdTRUE) { latest=next; probeSet(latest.probes[selected]); }
 }
 bool haLive() { return WiFi.status()==WL_CONNECTED && result==200; }
 String haStatusText() {
@@ -74,3 +83,8 @@ String haStatusText() {
   if(code==0) return "Home Assistant: verbinde";
   return "Home Assistant: Fehler "+String(code);
 }
+
+const ProbeData &haProbe(unsigned i){return latest.probes[i%5];}
+unsigned haSelected(){return selected;}
+void haSelect(unsigned i){selected=i%5;probeSet(latest.probes[selected]);}
+String haProbeName(){return selected<4?"Meater "+String(selected+1):"Probe 0ae3b60f";}

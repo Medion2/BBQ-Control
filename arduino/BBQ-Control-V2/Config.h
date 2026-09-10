@@ -32,4 +32,6 @@ constexpr char HaUrl[] = "http://192.168.178.200:8123";
 constexpr char HaToken[] = BBQ_HA_TOKEN;
 constexpr char HaProbe[] = BBQ_HA_PROBE;
 constexpr size_t MaxPayload = 1024;
+// Editable culinary profile for beef steak; not a food-safety assessment.
+constexpr float RareMin=49, MediumRareMin=54, MediumMin=57, MediumWellMin=63, WellDoneMin=68;
 }

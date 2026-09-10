@@ -4,6 +4,8 @@
 #include <math.h>
 struct ProbeData {
   float core = NAN, ambient = NAN, target = NAN, battery = NAN;
+  float peak=NAN, remaining=NAN, elapsed=NAN;
+  char cooking[64]="";
   char cookState[32] = "";
   bool probeOnline = false;
   bool received = false;
