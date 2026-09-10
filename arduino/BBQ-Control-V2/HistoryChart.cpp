@@ -13,18 +13,21 @@ bool HistoryChart::sample(uint32_t now,float v){
  for(uint32_t i=0;i<steps;++i){samples[head]=i+1==steps?v:NAN;head=(head+1)%60;if(count<60)++count;}
  last=now;return true;
 }
-void HistoryChart::draw(Widgets&w){
- if(!w.region(0,400,480,48))return;
+void HistoryChart::draw(Widgets&w,float target){
+ if(!w.region(12,290,280,140))return;
+ w.roundRect(0,0,280,140,7,Theme::Panel);
+ w.text(12,8,"TEMPERATURVERLAUF",SmallFont,Theme::Blue);
+ w.text(254,8,"C",SmallFont,Theme::Grey);
  float lo=INFINITY,hi=-INFINITY;
  for(float v:samples)if(isfinite(v)){lo=std::min(lo,v);hi=std::max(hi,v);}
- w.text(20,0,"60 min",SmallFont,Theme::Grey);
- if(!isfinite(lo)){w.centered(270,13,"Verlauf wartet auf Daten",SmallFont,Theme::Grey);w.present();return;}
- if(hi-lo<2){lo-=1;hi+=1;}
- w.text(20,20,String(lo,0)+"-"+String(hi,0)+" C",SmallFont,Theme::Grey);
- w.line(100,39,460,39,1,Theme::Panel);
- if(count==1&&isfinite(samples[(head+59)%60]))w.circle(460,36-(samples[(head+59)%60]-lo)/(hi-lo)*30,1,2,Theme::Orange);
- for(unsigned n=1;n<count;++n){
-  float a=samples[(head+60-count+n-1)%60],b=samples[(head+60-count+n)%60];
-  if(isfinite(a)&&isfinite(b))w.line(100+(60-count+n-1)*360.f/59,36-(a-lo)/(hi-lo)*30,100+(60-count+n)*360.f/59,36-(b-lo)/(hi-lo)*30,2,Theme::Orange);
- }w.present();
+ if(!isfinite(lo)){w.centered(140,62,"Warte auf Messwerte",SmallFont,Theme::Grey);w.present();return;}
+ if(isfinite(target)){lo=std::min(lo,target);hi=std::max(hi,target);}
+ if(hi-lo<4){lo-=2;hi+=2;}else{float pad=(hi-lo)*.1f;lo-=pad;hi+=pad;}
+ for(int i=0;i<4;++i){float y=32+i*23.f;w.line(38,y,266,y,1,Theme::Background);w.text(4,int(y)-5,String(hi-(hi-lo)*i/3,0),SmallFont,Theme::Grey);}
+ if(isfinite(target)){float y=101-(target-lo)/(hi-lo)*69;for(int x=38;x<264;x+=8)w.line(x,y,x+4,y,1,Theme::Grey);}
+ for(unsigned n=1;n<count;++n){float a=samples[(head+60-count+n-1)%60],b=samples[(head+60-count+n)%60];
+  if(isfinite(a)&&isfinite(b))w.line(38+(60-count+n-1)*228.f/59,101-(a-lo)/(hi-lo)*69,38+(60-count+n)*228.f/59,101-(b-lo)/(hi-lo)*69,2,Theme::Green);
+ }
+ float v=samples[(head+59)%60];if(isfinite(v))w.circle(266,101-(v-lo)/(hi-lo)*69,1,2,Theme::Green);
+ w.text(30,111,"-60 min",SmallFont,Theme::Grey);w.text(128,111,"-30",SmallFont,Theme::Grey);w.text(236,111,"Jetzt",SmallFont,Theme::Grey);w.present();
 }

@@ -16,8 +16,8 @@ arduino-cli compile --fqbn esp32:esp32:esp32s3:PSRAM=opi,CDCOnBoot=cdc,FlashSize
 ```
 
 Der Verlauf beginnt beim Start und umfasst maximal 60 Minuten im RAM.
-Fehlende Daten werden als Luecken behandelt. MQTT ist deaktiviert (graues Icon),
-fehlender Akku ist unbekannt (oranges Icon), kein erfundener Prozentwert.
+Fehlende Daten werden als Luecken behandelt. MQTT bleibt deaktiviert.
+Fehlender Akku ist unbekannt (oranges Icon), kein erfundener Prozentwert.
 60 FPS ist ein Zeitbudget fuer die UI, keine gemessene Zusage fuer die Hardware.
 
 ## Bedienung
@@ -25,12 +25,13 @@ fehlender Akku ist unbekannt (oranges Icon), kein erfundener Prozentwert.
 - Links/rechts wischen: Meater 1 bis 4 und Probe 0ae3b60f wechseln.
 - Garraum antippen: Garraumtemperatur, Spitzentemperatur, verstrichene Garzeit,
   Gericht und HA-Prozessstatus anzeigen. Oben links geht es zurueck.
-- Zieltemperatur antippen: mit Minus/Plus ein lokales Anzeigeziel zwischen 1 und
+- Den grossen Temperaturbereich links antippen: mit Minus/Plus ein lokales Anzeigeziel zwischen 1 und
   150 Grad C einstellen. Erst "Lokal speichern" uebernimmt es. "HA-Ziel verwenden"
   entfernt die lokale Ueberschreibung. Oben links bricht ohne Speichern ab.
 - Die lokale Ueberschreibung gilt je Sonde bis zum Neustart. Sie steuert weder
   Meater noch Home Assistant; deine Solltemperatur-Entitaeten sind nur lesbare Sensoren.
-- Statusleiste antippen: Verbindungsdetails. MQTT bleibt bewusst deaktiviert.
+- Verbindungskarte oder WLAN-/Haus-Icon oben antippen: Verbindungsdetails.
+  Auf Detailseiten ist auch die untere Statusleiste antippbar.
 
 Alle acht gelieferten Sensoren je Sonde werden abgefragt. Akkudaten fehlen in der
 Sensorliste; die Karte bleibt --. Restzeit (HA) wird aus dem Endzeitpunkt berechnet,
@@ -62,7 +63,7 @@ Aenderungsframes pro Sekunde; im ruhenden Dashboard ist dieser Wert absichtlich 
 Zwei Widget-Puffer brauchen zusammen 460800 Byte PSRAM. Sie sind keine neuen
 Hardware-Scanout-Puffer: sie aendern die RGB-Pufferkonfiguration nicht.
 Bei Speichermangel wird auf einen Widget-Puffer zurueckgefallen.
-Seitenwechsel zeichnen nur den Seiteninhalt neu; die Statusleiste bleibt separat.
+Seitenwechsel zeichnen den Seiteninhalt neu; die Kopfzeile bleibt separat.
 
 Touch verwendet den vorhandenen GT911 am bestehenden I2C-Bus, Adresse 0x5D bzw. 0x14.
 Fehlende/fehlerhafte Touchmeldungen brechen eine Geste ab statt einen Klick auszulösen.
@@ -83,10 +84,34 @@ bleiben gleich. Die serielle Ausgabe nennt beim Start den angeforderten Pixeltak
 
 Bei unveraenderten Timings entspricht das nominal etwa 28 Hz statt 42 Hz.
 Diese Testeinstellung priorisiert Stabilitaet; 60 Bildschirmbilder/s sind damit
-nicht erreichbar. Ob sie das dauerhafte Flackern behebt, muss am Geraet geprueft werden.
+nicht erreichbar. Der Nutzer meldet weiterhin Flackern. Die Untersuchung ist
+auf seinen Wunsch pausiert; das neue Design enthaelt keinen weiteren Flacker-Fix.
 Die bestehende GFX-Version bietet hier keine oeffentliche Bounce-Buffer-Einstellung.
 
 Zum direkten Vergleich kann in Secrets.h `#define BBQ_LCD_PCLK_HZ 12000000L`
 eingetragen und neu kompiliert werden. Ohne diese Zeile werden 8 MHz verwendet.
-Wenn Flackern oder Bildverschiebungen auch mit 8 MHz bleiben, werden als naechstes
-Treiber/Core-Version, RGB-DMA-Pufferung und Stromversorgung eingegrenzt.
+
+
+## Design nach Referenzbild
+
+Das Querformat der Vorlage ist fuer das vorhandene 480 x 480 Display angepasst:
+links der grosse Temperatur-Ring, darunter ein 60-Minuten-Verlauf mit gestricheltem
+Zielwert und ein Zielstatus. Rechts stehen gleich grosse Karten fuer Garraum,
+Restzeit, Akku und Home Assistant sowie eine Karte fuer die ausgewaehlte Sonde.
+Schwarzer Hintergrund, dunkle Karten, blaue Beschriftung und gruene Verlaufslinie.
+Die Kopfzeile zeigt echte WLAN-/HA-Zustaende. Es gibt keine direkte Bluetooth-
+Verbindung zur Sonde; darum erscheint kein Bluetooth-Verbunden-Symbol.
+
+Die Uhr synchronisiert sich bei WLAN-Verbindung per NTP (pool.ntp.org/time.nist.gov),
+mit deutscher Sommer-/Winterzeit. Bis zur ersten Synchronisation erscheint --:--.
+Restzeit ist Stunden:Minuten, auf volle Minuten aufgerundet. Die Aktualisierungs-
+angabe nennt das Alter der letzten erfolgreichen HA-Abfrage, nicht den Zeitpunkt
+der physischen Messung. Ein erreichbares HA allein bedeutet keine aktuelle Sonde.
+
+Der Zielhinweis wird nur gruen, wenn eine frische Kerntemperatur mindestens das
+angezeigte Ziel erreicht. Ein lokales Ziel ist im Ring mit LOKAL gekennzeichnet.
+Diagramm, Ring und Zielhinweis verwenden dasselbe Anzeigeziel; die HA-Restzeit
+bleibt davon unabhaengig. Akku bleibt mangels Sensor --. Es werden keine
+Beispielmessungen, Vorhersagekurven oder Verbindungszustaende im Sketch erzeugt.
+
+Display.cpp und die 8-MHz-Konfiguration wurden fuer dieses Design nicht veraendert.

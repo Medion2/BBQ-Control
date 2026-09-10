@@ -55,5 +55,8 @@ void Widgets::icon(int x,int y,int type,uint16_t c){
  }else if(type==4){line(x-10,y-2,x+8,y-2,2,c);line(x-10,y+12,x+8,y+12,2,c);line(x-10,y-2,x-10,y+12,2,c);line(x+8,y-2,x+8,y+12,2,c);rect(x+9,y+2,3,6,c);
  }else if(type==5){circle(x,y+5,10,2,c);line(x,y+5,x,y-2,2,c);line(x,y+5,x+5,y+8,2,c);
  }else if(type==6){circle(x,y+5,9,2,c);circle(x,y+5,4,2,c);
- }else {line(x-6,y+13,x,y-6,3,c);line(x,y-6,x+6,y+13,3,c);line(x+6,y+13,x-6,y+13,3,c);}
+ }else { // Thermometer
+  circle(x,y+10,5,2,c);line(x-3,y+6,x-3,y-7,2,c);line(x+3,y+6,x+3,y-7,2,c);
+  line(x-3,y-7,x+3,y-7,2,c);line(x,y+9,x,y-3,2,c);
+ }
 }

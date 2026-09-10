@@ -3,8 +3,8 @@
 #include "Fonts.h"
 namespace Theme {
 constexpr uint16_t rgb(unsigned c) { return ((c>>8)&0xf800)|((c>>5)&0x07e0)|((c>>3)&31); }
-constexpr uint16_t Background=rgb(0x101114),Panel=rgb(0x1B1D23),Orange=rgb(0xFF7A00),White=0xffff;
-constexpr uint16_t Grey=rgb(0xADB2BE),Blue=rgb(0x409CFF),Green=rgb(0x45D391),Red=rgb(0xF45364);
+constexpr uint16_t Background=rgb(0x020405),Panel=rgb(0x081219),Orange=rgb(0xFF7A00),White=0xffff;
+constexpr uint16_t Grey=rgb(0xADB2BE),Blue=rgb(0x409CFF),Green=rgb(0x61BE17),Red=rgb(0xF45364),Track=rgb(0x29363D);
 }
 class Widgets {
  public:
