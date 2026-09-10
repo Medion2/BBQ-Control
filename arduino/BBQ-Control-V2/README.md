@@ -66,3 +66,9 @@ Seitenwechsel zeichnen nur den Seiteninhalt neu; die Statusleiste bleibt separat
 Touch verwendet den vorhandenen GT911 am bestehenden I2C-Bus, Adresse 0x5D bzw. 0x14.
 Fehlende/fehlerhafte Touchmeldungen brechen eine Geste ab statt einen Klick auszulösen.
 Touch-Ausrichtung, reale Bildrate und Darstellung muessen noch am Geraet geprueft werden.
+
+Die Ringgeometrie und Kantenglaettung liegen vorberechnet im Flash (RingPixels.h).
+Damit gibt es pro Animationsbild keine atan2-/Wurzelberechnung fuer den Ring.
+Die Tabelle kann mit `python tools/generate_ring.py` reproduziert werden.
+Breite, dreistellige Kernwerte erscheinen ohne Nachkommastelle, damit sie innerhalb
+des Rings bleiben. Messdaten und Verlauf behalten ihre urspruengliche Genauigkeit.
