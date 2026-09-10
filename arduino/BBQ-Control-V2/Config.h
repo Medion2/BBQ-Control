@@ -3,6 +3,9 @@
 #if __has_include("Secrets.h")
 #include "Secrets.h"
 #endif
+#ifndef BBQ_LCD_PCLK_HZ
+#define BBQ_LCD_PCLK_HZ 8000000L
+#endif
 #ifndef BBQ_WIFI_SSID
 #define BBQ_WIFI_SSID ""
 #endif
@@ -22,6 +25,7 @@
 #define BBQ_HA_TOKEN "compile-only"
 #endif
 namespace Config {
+constexpr int32_t LcdPixelClockHz = BBQ_LCD_PCLK_HZ;
 constexpr char WiFiSsid[] = BBQ_WIFI_SSID;
 constexpr char WiFiPassword[] = BBQ_WIFI_PASSWORD;
 constexpr uint32_t WiFiTimeoutMs = 15000, WiFiRetryMs = 30000;

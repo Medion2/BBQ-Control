@@ -1,6 +1,7 @@
 # BBQ Control V2
 
-Arduino ESP32-S3 Smart 86 Box. Die Displayinitialisierung ist bytegleich zu V1.
+Arduino ESP32-S3 Smart 86 Box. Pins, Panel-Befehle und Resetfolge entsprechen V1.
+Mit Nutzerfreigabe ist der RGB-Pixeltakt nun explizit auf 8 MHz reduziert.
 V2 verwendet Roboto (OFL, siehe FONT-LICENSE.txt), geglaettete 4-Bit-Schriftmasken,
 RGB565-Farben und zwei PSRAM-Zeichenpuffer fuer einzelne Bildschirmbereiche.
 
@@ -59,7 +60,7 @@ Jede Karte wird nur bei Aenderung uebertragen. Ringanimationen erhalten ein
 16-ms-Zeitbudget. Die serielle Ausgabe meldet die tatsaechlich gezeichneten
 Aenderungsframes pro Sekunde; im ruhenden Dashboard ist dieser Wert absichtlich niedrig.
 Zwei Widget-Puffer brauchen zusammen 460800 Byte PSRAM. Sie sind keine neuen
-Hardware-Scanout-Puffer: die funktionierende Displayinitialisierung bleibt unberuehrt.
+Hardware-Scanout-Puffer: sie aendern die RGB-Pufferkonfiguration nicht.
 Bei Speichermangel wird auf einen Widget-Puffer zurueckgefallen.
 Seitenwechsel zeichnen nur den Seiteninhalt neu; die Statusleiste bleibt separat.
 
@@ -72,3 +73,20 @@ Damit gibt es pro Animationsbild keine atan2-/Wurzelberechnung fuer den Ring.
 Die Tabelle kann mit `python tools/generate_ring.py` reproduziert werden.
 Breite, dreistellige Kernwerte erscheinen ohne Nachkommastelle, damit sie innerhalb
 des Rings bleiben. Messdaten und Verlauf behalten ihre urspruengliche Genauigkeit.
+
+## Test gegen dauerhaftes Flackern
+
+Der Pixeltakt ist explizit 8 MHz statt des OPI-Standardwerts 12 MHz der getesteten
+GFX-Version 1.4.7. Das reduziert die fortlaufenden PSRAM-Lesezugriffe des Displays.
+Pinbelegung, Taktflanke, Synchronisationszeiten, Panel-Befehlssequenz und Resetfolge
+bleiben gleich. Die serielle Ausgabe nennt beim Start den angeforderten Pixeltakt.
+
+Bei unveraenderten Timings entspricht das nominal etwa 28 Hz statt 42 Hz.
+Diese Testeinstellung priorisiert Stabilitaet; 60 Bildschirmbilder/s sind damit
+nicht erreichbar. Ob sie das dauerhafte Flackern behebt, muss am Geraet geprueft werden.
+Die bestehende GFX-Version bietet hier keine oeffentliche Bounce-Buffer-Einstellung.
+
+Zum direkten Vergleich kann in Secrets.h `#define BBQ_LCD_PCLK_HZ 12000000L`
+eingetragen und neu kompiliert werden. Ohne diese Zeile werden 8 MHz verwendet.
+Wenn Flackern oder Bildverschiebungen auch mit 8 MHz bleiben, werden als naechstes
+Treiber/Core-Version, RGB-DMA-Pufferung und Stromversorgung eingegrenzt.

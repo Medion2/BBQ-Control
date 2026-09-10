@@ -1,4 +1,5 @@
 #include "Display.h"
+#include "Config.h"
 #include <Wire.h>
 #define BACKLIGHT_PIN 4
 #define BLACK 0x0000
@@ -12,13 +13,15 @@ Arduino_ESP32RGBPanel *rgbpanel = new Arduino_ESP32RGBPanel(
     21, 8, 18, 45, 38, 39,       // G0-G5
     40, 41, 42, 2, 1,            // R0-R4
     1, 10, 8, 50,                // hsync polarity, front, pulse, back
-    1, 10, 8, 20);               // vsync polarity, front, pulse, back
+    1, 10, 8, 20,                // vsync polarity, front, pulse, back
+    0, Config::LcdPixelClockHz); // original sampling edge; explicit lower pixel clock
 
 Arduino_RGB_Display *gfx = new Arduino_RGB_Display(
     480, 480, rgbpanel, 0, true,
     expander, GFX_NOT_DEFINED, st7701_type1_init_operations, sizeof(st7701_type1_init_operations));
 
 void displayBegin() {
+  Serial.printf("LCD pixel clock: %ld Hz\n", static_cast<long>(Config::LcdPixelClockHz));
   Wire.begin(47, 48);
 
   expander->pinMode(5, OUTPUT);
