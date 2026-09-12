@@ -8,7 +8,8 @@ RGB565-Farben und zwei PSRAM-Zeichenpuffer fuer einzelne Bildschirmbereiche.
 Secrets.example.h lokal nach Secrets.h kopieren und WLAN sowie HA-Token eintragen.
 Die REST-Verbindung nutzt http://192.168.178.200:8123 ohne MQTT.
 
-Buildbasis: ESP32 Arduino Core 2.0.17 und GFX Library for Arduino 1.4.7.
+Buildbasis fuer den Bounce-Buffer-Test: ESP32 Arduino Core 3.3.11 und
+GFX Library for Arduino 1.6.7 (entspricht der gemeldeten Nutzerinstallation).
 Board ESP32S3 Dev Module, OPI PSRAM, 16 MB Flash, USB CDC aktiviert.
 
 ```sh
@@ -84,9 +85,8 @@ bleiben gleich. Die serielle Ausgabe nennt beim Start den angeforderten Pixeltak
 
 Bei unveraenderten Timings entspricht das nominal etwa 28 Hz statt 42 Hz.
 Diese Testeinstellung priorisiert Stabilitaet; 60 Bildschirmbilder/s sind damit
-nicht erreichbar. Der Nutzer meldet weiterhin Flackern. Die Untersuchung ist
-auf seinen Wunsch pausiert; das neue Design enthaelt keinen weiteren Flacker-Fix.
-Die bestehende GFX-Version bietet hier keine oeffentliche Bounce-Buffer-Einstellung.
+nicht erreichbar. Die Reduktion allein hat das Flackern laut Nutzer nicht behoben.
+Der folgende Test aktiviert deshalb die DMA-Zwischenpuffer der neueren Bibliothek.
 
 Zum direkten Vergleich kann in Secrets.h `#define BBQ_LCD_PCLK_HZ 12000000L`
 eingetragen und neu kompiliert werden. Ohne diese Zeile werden 8 MHz verwendet.
@@ -114,4 +114,35 @@ Diagramm, Ring und Zielhinweis verwenden dasselbe Anzeigeziel; die HA-Restzeit
 bleibt davon unabhaengig. Akku bleibt mangels Sensor --. Es werden keine
 Beispielmessungen, Vorhersagekurven oder Verbindungszustaende im Sketch erzeugt.
 
-Display.cpp und die 8-MHz-Konfiguration wurden fuer dieses Design nicht veraendert.
+Das Referenzdesign hat die Displaykonfiguration nicht veraendert. Der nachfolgende
+Bounce-Buffer-Test aendert nur die RGB-Pufferoptionen und Startdiagnose.
+
+## Flackertest: interne DMA-Zwischenpuffer
+
+Fuer ESP32-Core 3.x und Arduino-GFX 1.6.7 wird der bisher standardmaessig
+abgeschaltete Bounce Buffer aktiviert: 480 * 10 Pixel je Puffer, zwei Puffer
+mit zusammen 19200 Byte internem RAM (RGB565). Der Bildspeicher bleibt im PSRAM;
+der Treiber speist den RGB-DMA-Datenstrom ueber die internen Zwischenpuffer.
+Dies adressiert moegliche Unterbrechungen beim PSRAM-Zugriff, nicht alle Ursachen
+von Flackern oder sichtbare Bildwechsel. Die Wirksamkeit muss am Geraet geprueft werden.
+
+Unveraendert: alle GPIOs, RGB-Zuordnung, Taktflanke, Porches, Pixeltakt,
+ST7701-Befehlsfolge, Expander-Reset, Hintergrundbeleuchtung und Dashboard.
+Unter Core 2.x bleibt der vorherige Pfad aktiv; er testet diese Puffer nicht.
+
+1. ESP32-Core 3.3.11 und GFX Library for Arduino 1.6.7 verwenden.
+2. Board: ESP32S3 Dev Module, OPI PSRAM, 16 MB Flash; bestehende Secrets.h behalten.
+3. Sketch kompilieren und hochladen. Serieller Monitor: 115200 Baud.
+4. Startausgabe kontrollieren: LCD bounce buffer: 4800 pixels (10 lines).
+5. Mit unveraendertem Netzteil und Kabel das ruhende Dashboard sowie wechselnde
+   Messwerte beobachten. Auf Helligkeitspulsieren, horizontale Versetzung und
+   Streifen achten. Ein erfolgreiches Kompilieren beweist noch keine Bildstabilitaet.
+
+Zum A/B-Vergleich in Secrets.h `#define BBQ_LCD_BOUNCE_LINES 0` setzen und erneut
+hochladen. Mit `10` oder ohne diese Zeile sind die Zwischenpuffer aktiv.
+Die Zeilenzahl muss 480 teilen; erlaubt sind 0 bis 40. Fuer den ersten Test 10
+verwenden. Bestehende BBQ_LCD_PCLK_HZ-Einstellungen bei beiden Tests gleich lassen.
+
+Quellen:
+- https://github.com/moononournation/Arduino_GFX/blob/v1.6.7/src/databus/Arduino_ESP32RGBPanel.cpp
+- https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/peripherals/lcd/rgb_lcd.html

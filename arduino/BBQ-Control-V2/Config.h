@@ -6,6 +6,9 @@
 #ifndef BBQ_LCD_PCLK_HZ
 #define BBQ_LCD_PCLK_HZ 8000000L
 #endif
+#ifndef BBQ_LCD_BOUNCE_LINES
+#define BBQ_LCD_BOUNCE_LINES 10
+#endif
 #ifndef BBQ_WIFI_SSID
 #define BBQ_WIFI_SSID ""
 #endif
@@ -26,6 +29,10 @@
 #endif
 namespace Config {
 constexpr int32_t LcdPixelClockHz = BBQ_LCD_PCLK_HZ;
+constexpr int LcdBounceLines = BBQ_LCD_BOUNCE_LINES;
+static_assert(LcdBounceLines >= 0 && LcdBounceLines <= 40, "LCD bounce lines must be 0..40");
+static_assert(LcdBounceLines == 0 || 480 % LcdBounceLines == 0, "LCD bounce lines must divide 480");
+constexpr size_t LcdBouncePixels = 480 * LcdBounceLines;
 constexpr char WiFiSsid[] = BBQ_WIFI_SSID;
 constexpr char WiFiPassword[] = BBQ_WIFI_PASSWORD;
 constexpr uint32_t WiFiTimeoutMs = 15000, WiFiRetryMs = 30000;

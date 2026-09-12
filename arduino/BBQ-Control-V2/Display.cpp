@@ -1,6 +1,7 @@
 #include "Display.h"
 #include "Config.h"
 #include <Wire.h>
+#include <esp_arduino_version.h>
 #define BACKLIGHT_PIN 4
 #define BLACK 0x0000
 
@@ -14,7 +15,11 @@ Arduino_ESP32RGBPanel *rgbpanel = new Arduino_ESP32RGBPanel(
     40, 41, 42, 2, 1,            // R0-R4
     1, 10, 8, 50,                // hsync polarity, front, pulse, back
     1, 10, 8, 20,                // vsync polarity, front, pulse, back
-    0, Config::LcdPixelClockHz); // original sampling edge; explicit lower pixel clock
+    0, Config::LcdPixelClockHz // original sampling edge and pixel clock
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+    , false, 0, 0, Config::LcdBouncePixels // original endian/idle levels; internal DMA staging
+#endif
+    );
 
 Arduino_RGB_Display *gfx = new Arduino_RGB_Display(
     480, 480, rgbpanel, 0, true,
@@ -22,6 +27,12 @@ Arduino_RGB_Display *gfx = new Arduino_RGB_Display(
 
 void displayBegin() {
   Serial.printf("LCD pixel clock: %ld Hz\n", static_cast<long>(Config::LcdPixelClockHz));
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  Serial.printf("LCD bounce buffer: %u pixels (%d lines), Arduino core %s\n",
+      unsigned(Config::LcdBouncePixels), Config::LcdBounceLines, ESP_ARDUINO_VERSION_STR);
+#else
+  Serial.println("LCD bounce buffer unavailable: use ESP32 core 3.3.11 / Arduino-GFX 1.6.7");
+#endif
   Wire.begin(47, 48);
 
   expander->pinMode(5, OUTPUT);
