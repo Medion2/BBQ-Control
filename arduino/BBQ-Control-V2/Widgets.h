@@ -9,6 +9,11 @@ constexpr uint16_t Grey=rgb(0xADB2BE),Blue=rgb(0x409CFF),Green=rgb(0x61BE17),Red
 class Widgets {
  public:
  bool begin();
+ void brightness(unsigned percent){level=percent>100?100:percent<10?10:percent;}
+ void textScaled(int x,int y,const String &s,const SmoothFont &f,uint16_t c,float scale);
+ void fitted(int x,int y,int maxWidth,const String &s,const SmoothFont &f,uint16_t c);
+ void symbol(int x,int y,int type,uint16_t color); // flame, meat, chart, gear, bell, probes, menu
+
  bool region(int x,int y,int w,int h);
  void present();
  void pixel(int x,int y,uint16_t color,float alpha=1);
@@ -22,5 +27,6 @@ class Widgets {
  void icon(int x,int y,int type,uint16_t color);
  bool doubled() const { return buffers[1]!=nullptr; }
  private:
+ unsigned level=100;
  uint16_t *buffers[2]={},*pixels=nullptr; int active=0,rx=0,ry=0,width=0,height=0;
 };
