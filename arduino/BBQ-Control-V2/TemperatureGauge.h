@@ -2,6 +2,6 @@
 #include "Widgets.h"
 class TemperatureGauge {
  public:
- void draw(Widgets &w,float core,float target,bool valid,float arc=-1,bool localTarget=false);
- static uint16_t color(float ratio);
+ void draw(Widgets&w,float core,float progress,bool valid,bool fahrenheit,int trend,const String &age);
+ static uint16_t color(float progress);
 };

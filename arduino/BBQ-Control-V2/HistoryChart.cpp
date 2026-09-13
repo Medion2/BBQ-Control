@@ -1,33 +1,39 @@
 #include "HistoryChart.h"
-#include <math.h>
 #include <algorithm>
 HistoryChart::HistoryChart(){for(auto &v:samples)v=NAN;}
 bool HistoryChart::sample(uint32_t now,float v){
- if(count && uint32_t(now-last)<60000){
-  float &current=samples[(head+59)%60];
-  if((!isfinite(current)&&!isfinite(v))||current==v)return false;
-  current=v;return true;
- }
- uint32_t steps=count?uint32_t(now-last)/60000:1;
- if(steps>60)steps=60;
- for(uint32_t i=0;i<steps;++i){samples[head]=i+1==steps?v:NAN;head=(head+1)%60;if(count<60)++count;}
- last=now;return true;
+ if(count&&uint32_t(now-last)<60000){float &current=samples[(head+Capacity-1)%Capacity];if((!isfinite(current)&&!isfinite(v))||current==v)return false;current=v;return true;}
+ uint32_t steps=count?uint32_t(now-last)/60000:1;if(steps>Capacity)steps=Capacity;
+ for(uint32_t i=0;i<steps;++i){samples[head]=i+1==steps?v:NAN;head=(head+1)%Capacity;if(count<Capacity)++count;}last=now;return true;
 }
-void HistoryChart::draw(Widgets&w,float target){
- if(!w.region(12,290,280,140))return;
- w.roundRect(0,0,280,140,7,Theme::Panel);
- w.text(12,8,"TEMPERATURVERLAUF",SmallFont,Theme::Blue);
- w.text(254,8,"C",SmallFont,Theme::Grey);
+HistoryStats HistoryChart::stats(unsigned window)const{
+ HistoryStats s;float sum=0;for(unsigned i=0;i<std::min(window,count);++i){float v=recent(i);if(!isfinite(v))continue;
+  if(!s.count){s.low=s.high=v;}else{s.low=std::min(s.low,v);s.high=std::max(s.high,v);}sum+=v;++s.count;}
+ if(s.count)s.mean=sum/s.count;return s;
+}
+int HistoryChart::trend()const{for(unsigned i=0;i<4;++i)if(!isfinite(recent(i)))return 2;float d=recent(0)-recent(3);return d>.3f?1:d<-.3f?-1:0;}
+void HistoryChart::drawPage(Widgets&w,const HistoryChart&a,float target,unsigned mode,unsigned window,bool fahrenheit)const{
+ auto cv=[&](float v){return fahrenheit?v*1.8f+32:v;};
+ auto core=stats(window),air=a.stats(window);bool showCore=mode!=1,showAir=mode!=0;
  float lo=INFINITY,hi=-INFINITY;
- for(float v:samples)if(isfinite(v)){lo=std::min(lo,v);hi=std::max(hi,v);}
- if(!isfinite(lo)){w.centered(140,62,"Warte auf Messwerte",SmallFont,Theme::Grey);w.present();return;}
- if(isfinite(target)){lo=std::min(lo,target);hi=std::max(hi,target);}
- if(hi-lo<4){lo-=2;hi+=2;}else{float pad=(hi-lo)*.1f;lo-=pad;hi+=pad;}
- for(int i=0;i<4;++i){float y=32+i*23.f;w.line(38,y,266,y,1,Theme::Background);w.text(4,int(y)-5,String(hi-(hi-lo)*i/3,0),SmallFont,Theme::Grey);}
- if(isfinite(target)){float y=101-(target-lo)/(hi-lo)*69;for(int x=38;x<264;x+=8)w.line(x,y,x+4,y,1,Theme::Grey);}
- for(unsigned n=1;n<count;++n){float a=samples[(head+60-count+n-1)%60],b=samples[(head+60-count+n)%60];
-  if(isfinite(a)&&isfinite(b))w.line(38+(60-count+n-1)*228.f/59,101-(a-lo)/(hi-lo)*69,38+(60-count+n)*228.f/59,101-(b-lo)/(hi-lo)*69,2,Theme::Green);
+ auto include=[&](float v){if(isfinite(v)){lo=std::min(lo,cv(v));hi=std::max(hi,cv(v));}};
+ if(showCore){include(core.low);include(core.high);}if(showAir){include(air.low);include(air.high);}
+ bool any=isfinite(lo);if(any&&showCore)include(target);
+ w.region(12,100,456,216);w.roundRect(0,0,456,216,8,Theme::Panel);
+ const char *labels[]={"Kern","Ziel","Garraum"};uint16_t colors[]={Theme::Red,Theme::Grey,Theme::Orange};int xs[]={12,118,245};
+ for(int i=0;i<3;++i){w.line(xs[i],14,xs[i]+14,14,2,colors[i]);w.text(xs[i]+21,6,labels[i],SmallFont,colors[i]);}
+ w.text(425,6,fahrenheit?"F":"C",SmallFont,Theme::Grey);
+ if(!any){w.centered(228,92,"Noch keine Messwerte",LabelFont,Theme::Grey);w.present();}
+ else {
+  float pad=std::max(2.f,(hi-lo)*.1f);lo-=pad;hi+=pad;
+  auto yy=[&](float v){return 166-(cv(v)-lo)/(hi-lo)*132;};
+  for(int i=0;i<5;++i){int y=34+i*33;w.line(43,y,434,y,1,Theme::Track);w.text(4,y-7,String(hi-(hi-lo)*i/4,0),SmallFont,Theme::Grey);}
+  if(showCore&&isfinite(target))for(int x=43;x<434;x+=10)w.line(x,yy(target),std::min(x+5,434),yy(target),1,Theme::Grey);
+  auto curve=[&](const HistoryChart&h,uint16_t c){for(unsigned i=1;i<window;++i){float v=h.recent(i),next=h.recent(i-1);if(isfinite(v)&&isfinite(next))w.line(434-i*391.f/(window-1),yy(v),434-(i-1)*391.f/(window-1),yy(next),2,c);}if(isfinite(h.recent(0)))w.circle(434,yy(h.recent(0)),1,2,c);};
+  if(showCore)curve(*this,Theme::Red);if(showAir)curve(a,Theme::Orange);
+  w.text(43,186,"-"+String(window)+" min",SmallFont,Theme::Grey);w.centered(235,186,"-"+String(window/2)+" min",SmallFont,Theme::Grey);w.text(403,186,"Jetzt",SmallFont,Theme::Grey);w.present();
  }
- float v=samples[(head+59)%60];if(isfinite(v))w.circle(266,101-(v-lo)/(hi-lo)*69,1,2,Theme::Green);
- w.text(30,111,"-60 min",SmallFont,Theme::Grey);w.text(128,111,"-30",SmallFont,Theme::Grey);w.text(236,111,"Jetzt",SmallFont,Theme::Grey);w.present();
+ HistoryStats s=mode==1?air:core;float vals[]={s.low,s.high,s.mean};const char *names[]={"MIN","MAX","MITTEL"};
+ for(int i=0;i<3;++i){w.region(12+i*154,330,148,76);w.roundRect(0,0,148,76,7,Theme::Panel);w.centered(74,10,String(names[i])+(mode==1?" GARRAUM":" KERN"),SmallFont,Theme::Grey);
+  String value=isfinite(vals[i])?String(cv(vals[i]),1)+(fahrenheit?" F":" C"):"--";int tw=w.textWidth(value,ValueFont);float scale=std::min(1.f,136.f/tw);w.textScaled((148-tw*scale)/2,36,value,ValueFont,Theme::White,scale);w.present();}
 }

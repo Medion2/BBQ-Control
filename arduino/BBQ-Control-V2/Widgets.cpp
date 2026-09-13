@@ -3,6 +3,10 @@
 #include <esp_heap_caps.h>
 #include <math.h>
 #include <algorithm>
+namespace Theme {
+uint16_t Background=rgb(0x0F1115),Panel=rgb(0x161A1F);
+void setAmoled(bool enabled){Background=enabled?0:rgb(0x0F1115);Panel=enabled?rgb(0x080B10):rgb(0x161A1F);}
+}
 bool Widgets::begin() {
  for(auto &b:buffers) b=(uint16_t*)heap_caps_malloc(480*240*2,MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT);
  if(!buffers[0]) buffers[0]=(uint16_t*)malloc(480*240*2);
@@ -90,5 +94,8 @@ void Widgets::symbol(int x,int y,int type,uint16_t c){
  }else if(type==3){circle(x,y,8,2,c);circle(x,y,3,2,c);for(int a=0;a<8;++a){float q=a*.785398f;line(x+cosf(q)*9,y+sinf(q)*9,x+cosf(q)*13,y+sinf(q)*13,3,c);}
  }else if(type==4){line(x-9,y+7,x-7,y-6,2,c);line(x-7,y-6,x,y-10,2,c);line(x,y-10,x+7,y-6,2,c);line(x+7,y-6,x+9,y+7,2,c);line(x-11,y+8,x+11,y+8,2,c);circle(x,y+11,2,2,c);
  }else if(type==5){for(int i=-1;i<=1;++i){line(x+i*9,y-10,x+i*9,y+10,2,c);circle(x+i*9,y-9,2,2,c);}}
+ else if(type==7){circle(x,y,5,2,c);for(int a=0;a<8;++a){float q=a*.785398f;line(x+cosf(q)*9,y+sinf(q)*9,x+cosf(q)*12,y+sinf(q)*12,2,c);}}
+ else if(type==8){line(x-12,y-9,x+12,y-9,2,c);line(x+12,y-9,x+12,y+8,2,c);line(x+12,y+8,x-12,y+8,2,c);line(x-12,y+8,x-12,y-9,2,c);line(x-5,y+12,x+5,y+12,2,c);}
+ else if(type==9){circle(x,y,10,2,c);text(x-2,y-11,"i",LabelFont,c);}
  else {for(int j=-1;j<=1;++j)line(x-10,y+j*6,x+10,y+j*6,2,c);}
 }

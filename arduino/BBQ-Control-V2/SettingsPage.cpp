@@ -1,16 +1,7 @@
 #include "SettingsPage.h"
-void SettingsPage::draw(Widgets&w){
- w.region(0,40,480,200);w.centered(240,20,"Zieltemperatur",ValueFont,Theme::White);w.centered(240,65,"Lokales Anzeigeziel",LabelFont,Theme::Orange);w.centered(240,105,String(editing,0),HeroFont,Theme::White);w.present();
- w.region(0,240,480,208);
- w.roundRect(24,12,120,60,14,Theme::Panel);w.centered(84,24,"-",ValueFont,Theme::White);
- w.roundRect(336,12,120,60,14,Theme::Panel);w.centered(396,24,"+",ValueFont,Theme::White);
- w.roundRect(24,92,432,48,14,Theme::Orange);w.centered(240,102,"Lokal speichern",LabelFont,Theme::Background);
- w.centered(240,158,"HA-Ziel verwenden",LabelFont,Theme::Grey);w.present();
-}
-int SettingsPage::touch(TouchEvent e){
- if(e.kind!=TouchEvent::Tap)return 0;
- if(e.y<40)return 2;
- if(e.y>=252&&e.y<=312){if(e.x>=24&&e.x<=144)editing=fmaxf(1,editing-1);else if(e.x>=336&&e.x<=456)editing=fminf(150,editing+1);else return 0;return 1;}
- if(e.y>=332&&e.y<=380){targets[probe]=editing;return 2;}
- if(e.y>=394&&e.y<440){targets[probe]=NAN;return 2;}return 0;
+#include <algorithm>
+void SettingsPage::row(Widgets&w,int i,const String&label,const String&value,uint16_t color,bool toggle,bool on,bool settings){
+ w.region(12,58+i*49,456,45);w.roundRect(0,0,456,45,6,Theme::Panel);if(settings){int icons[]={8,7,3,4,7,0,9};if(i==4||i==5)w.icon(23,15,icons[i],Theme::Grey);else w.symbol(23,22,icons[i],Theme::Grey);}w.text(settings?46:13,14,label,SmallFont,Theme::White);
+ if(toggle){w.roundRect(381,10,56,26,13,on?Theme::Orange:Theme::Track);w.circle(on?423:395,23,9,18,Theme::White);}
+ else {int width=std::min(220,w.textWidth(value,LabelFont));w.fitted(441-width,11,width,value,LabelFont,color);}w.present();
 }
