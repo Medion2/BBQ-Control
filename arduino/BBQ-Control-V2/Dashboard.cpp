@@ -8,7 +8,7 @@
 #include <time.h>
 #include <algorithm>
 namespace {
-bool fresh(const ProbeData&d,uint32_t now){return wifiConnected()&&haLive()&&d.received&&d.probeOnline&&uint32_t(now-d.receivedAt)<Config::StaleMs;}
+bool fresh(const ProbeData&d,uint32_t now){return haDataAvailable()&&d.received&&d.probeOnline&&uint32_t(now-d.receivedAt)<Config::StaleMs;}
 String name(unsigned i){return i<4?"MEATER "+String(i+1):"PROBE 0AE3B60F";}
 String remaining(const ProbeData&d,bool valid){
  if(!valid||!isfinite(d.remaining))return "--:--";
@@ -59,9 +59,11 @@ void Dashboard::home(){
  widgets.icon(31,135,6,Theme::White);widgets.text(54,120,ui.local(s)?"ZIEL LOKAL":"ZIELTEMPERATUR",SmallFont,Theme::Grey);widgets.fitted(54,139,118,ui.temperature(target),ValueFont,Theme::Orange);
  widgets.symbol(31,216,1,Theme::Red);widgets.fitted(54,195,118,String("GARSTUFE / ")+ui.meatName(s),SmallFont,Theme::Grey);widgets.fitted(54,216,118,ui.grade(s,d.core,valid),SmallFont,valid?Theme::Red:Theme::Grey);
  widgets.icon(31,280,5,Theme::White);widgets.text(54,259,"RESTZEIT",SmallFont,Theme::Grey);widgets.fitted(54,278,118,remaining(d,ok),ValueFont,Theme::White);widgets.present();}
- float wanted=valid&&isfinite(target)&&target>0?fminf(1,fmaxf(0,d.core/target)):0;bool moving=fabsf(arc-wanted)>.002f;arc=moving?arc+(wanted-arc)*.2f:wanted;
+ float wanted=valid&&isfinite(target)&&target>0?fminf(1,fmaxf(0,d.core/target)):0;bool moving=fabsf(arc-wanted)>.002f;arc=moving?arc+(wanted-arc)*.5f:wanted;
  String age=d.received?"vor "+String(uint32_t(millis()-d.receivedAt)/1000)+" s":"keine Daten";
- String g=key+age+String(history[s].trend());if(force||moving||g!=gaugeKey){gaugeKey=g;gauge.draw(widgets,d.core,arc,valid,ui.fahrenheit,history[s].trend(),age);}
+ String g=key+String(history[s].trend());
+ if(force||moving||g!=gaugeKey){gaugeKey=g;gaugeAge=age;gauge.draw(widgets,d.core,arc,valid,ui.fahrenheit,history[s].trend(),age);}
+ else if(age!=gaugeAge){gaugeAge=age;gauge.drawAge(widgets,age);}
 }
 void Dashboard::chart(bool changed){
  float target=ui.target(haSelected(),probeData().target);String key=String(plotMode)+String(plotWindow)+String(target)+String(ui.fahrenheit);
@@ -93,12 +95,12 @@ void Dashboard::details(){
 void Dashboard::settings(){
  const char *dims[]={"Aus","30 s","1 min","2 min"};row(0,"DISPLAY",String("Dimmen: ")+dims[ui.dimAfter]+" >",Theme::Grey);
  String k=String(ui.brightness);if(force||rows[1]!=k){rows[1]=k;widgets.region(12,107,456,45);widgets.roundRect(0,0,456,45,6,Theme::Panel);widgets.symbol(23,22,7,Theme::Grey);widgets.text(46,14,"HELLIGKEIT",SmallFont,Theme::White);int x=260+(ui.brightness-20)*130/80;widgets.line(260,23,390,23,3,Theme::Track);widgets.line(260,23,x,23,3,Theme::Orange);widgets.circle(x,23,5,10,Theme::White);widgets.text(404,15,String(ui.brightness)+"%",SmallFont,Theme::Grey);widgets.present();}
- row(2,"THEMA",ui.amoled?"AMOLED >":"Dunkel >",Theme::Grey);row(3,"ALARM VISUELL","",Theme::Orange,true,ui.alarms[haSelected()]);row(4,"EINHEITEN",ui.fahrenheit?"Fahrenheit >":"Celsius >",Theme::Grey);row(5,"WLAN",wifiConnected()?"Verbunden >":"Offline >",wifiConnected()?Theme::Green:Theme::Red);row(6,"INFO","BBQ Control 2.1 >",Theme::Grey);
+ row(2,"THEMA",ui.amoled?"AMOLED >":"Dunkel >",Theme::Grey);row(3,"ALARM VISUELL","",Theme::Orange,true,ui.alarms[haSelected()]);row(4,"EINHEITEN",ui.fahrenheit?"Fahrenheit >":"Celsius >",Theme::Grey);row(5,"WLAN",wifiConnected()?"Verbunden >":"Offline >",wifiConnected()?Theme::Green:Theme::Red);row(6,"INFO","BBQ Control 2.1.1 >",Theme::Grey);
 }
 void Dashboard::info(){
  String key=String(millis()/1000);if(!force&&key==bodyKey)return;bodyKey=key;
- row(0,"WLAN",wifiStatusText(),Theme::Grey);row(1,"IP",wifiAddress(),Theme::White);row(2,"HOME ASSISTANT",haStatusText(),haLive()?Theme::Green:Theme::Red);row(3,"SONDE",fresh(probeData(),millis())?"Aktuelle Daten":"Keine Daten",Theme::Grey);
- row(4,"HEAP FREI",String(ESP.getFreeHeap()/1024)+" KB",Theme::Grey);row(5,"PSRAM FREI",String(ESP.getFreePsram()/1024)+" KB",Theme::Grey);row(6,"VERSION","2.1 / 480 x 480",Theme::Orange);
+ row(0,"WLAN",wifiStatusText(),Theme::Grey);row(1,"IP",wifiAddress(),Theme::White);row(2,"HOME ASSISTANT",haStatusText(),haRecovering()?Theme::Orange:haLive()?Theme::Green:Theme::Red);row(3,"SONDE",fresh(probeData(),millis())?"Aktuelle Daten":"Keine Daten",Theme::Grey);
+ row(4,"HEAP FREI",String(ESP.getFreeHeap()/1024)+" KB",Theme::Grey);row(5,"PSRAM FREI",String(ESP.getFreePsram()/1024)+" KB",Theme::Grey);row(6,"VERSION","2.1.1 / 480 x 480",Theme::Orange);
 }
 void Dashboard::targetPage(){
  String key=String(editing,3)+String(ui.fahrenheit);if(!force&&key==bodyKey)return;bodyKey=key;
@@ -116,12 +118,12 @@ void Dashboard::alarms(){
  if(next!=activeAlarm){activeAlarm=next;navigate(page);}
 }
 void Dashboard::footer(){
- bool warning=toast.length()&&int32_t(toastUntil-millis())>0;String key=String(activeAlarm)+String(warning)+String(wifiConnected())+String(haLive())+name(haSelected())+ui.temperature(fresh(probeData(),millis())?probeData().ambient:NAN);
+ bool warning=toast.length()&&int32_t(toastUntil-millis())>0;String key=String(activeAlarm)+String(warning)+String(wifiConnected())+String(haLive())+String(haRecovering())+name(haSelected())+ui.temperature(fresh(probeData(),millis())?probeData().ambient:NAN);
  if(!force&&key==footerKey)return;footerKey=key;
  if(page!=0&&activeAlarm<0&&!warning)return;
  int y=page==0?378:404,h=page==0?48:28;widgets.region(0,y,480,h);
  if(activeAlarm>=0||warning){widgets.roundRect(8,0,464,h-2,6,Theme::Panel);widgets.symbol(27,h/2,4,Theme::Orange);widgets.fitted(49,7,348,warning?toast:name(activeAlarm)+" - ZIEL ERREICHT",SmallFont,Theme::Orange);widgets.text(432,7,"OK",SmallFont,Theme::White);}
- else {widgets.line(12,0,468,0,1,Theme::Track);widgets.icon(25,18,0,wifiConnected()?Theme::White:Theme::Red);widgets.icon(62,18,1,haLive()?Theme::Blue:Theme::Red);widgets.fitted(88,16,220,name(haSelected()),LabelFont,Theme::White);widgets.symbol(322,29,0,Theme::Orange);widgets.fitted(345,12,123,ui.temperature(fresh(probeData(),millis())?probeData().ambient:NAN),ValueFont,Theme::Orange);}
+ else {widgets.line(12,0,468,0,1,Theme::Track);widgets.icon(25,18,0,wifiConnected()?Theme::White:Theme::Red);widgets.icon(62,18,1,haRecovering()?Theme::Orange:haLive()?Theme::Blue:Theme::Red);widgets.fitted(88,16,220,name(haSelected()),LabelFont,Theme::White);widgets.symbol(322,29,0,Theme::Orange);widgets.fitted(345,12,123,ui.temperature(fresh(probeData(),millis())?probeData().ambient:NAN),ValueFont,Theme::Orange);}
  widgets.present();
 }
 void Dashboard::handle(const TouchEvent&e){
@@ -140,11 +142,14 @@ void Dashboard::handle(const TouchEvent&e){
  else if(page==5){if(e.y>=252&&e.y<312){float step=ui.fahrenheit?1/1.8f:1;if(e.x<144)editing=fmaxf(1,editing-step);else if(e.x>=336)editing=fminf(150,editing+step);}else if(e.y>=332&&e.y<380){ui.setTarget(haSelected(),editing);save();navigate(backPage);}else if(e.y>=390){ui.setTarget(haSelected(),NAN);save();navigate(backPage);}}
 }
 void Dashboard::update(){
- if(!ready)return;handle(touch.update());uint32_t now=millis();if(now-last<33)return;last=now;
+ if(!ready)return;handle(touch.update());uint32_t now=millis();
+ // Sensor values arrive every 10 s. Keep touch responsive without rebuilding
+ // every page/cache key 30 times per second and competing with HTTP for heap/CPU.
+ if(!force&&now-last<200)return;last=now;
  if(!ntpStarted&&wifiConnected()){configTzTime("CET-1CEST,M3.5.0,M10.5.0/3","pool.ntp.org","time.nist.gov");ntpStarted=true;}
  if(shown!=haSelected()){shown=haSelected();arc=0;navigate(page);}
  alarms();bool shouldDim=ui.dimMs()&&uint32_t(now-lastInteraction)>=ui.dimMs();if(shouldDim!=dimmed){dimmed=shouldDim;widgets.brightness(dimmed?10:ui.brightness);navigate(page);}
  if(toast.length()&&int32_t(now-toastUntil)>=0){toast="";navigate(page);}
- bool changed=false;for(unsigned i=0;i<5;++i){const auto &d=haProbe(i);bool valid=fresh(d,now);bool a=history[i].sample(now,valid?d.core:NAN),b=ambient[i].sample(now,valid?d.ambient:NAN);if(i==haSelected())changed=a||b;}
+ bool changed=false;for(unsigned i=0;i<5;++i){const auto &d=haProbe(i);bool valid=fresh(d,now)&&haLive();bool a=history[i].sample(now,valid?d.core:NAN),b=ambient[i].sample(now,valid?d.ambient:NAN);if(i==haSelected())changed=a||b;}
  header();switch(page){case 0:home();break;case 1:chart(changed);break;case 2:probes();break;case 3:details();break;case 4:settings();break;case 5:targetPage();break;case 6:info();break;}footer();force=false;
 }

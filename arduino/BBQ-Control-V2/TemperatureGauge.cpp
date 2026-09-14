@@ -18,3 +18,10 @@ void TemperatureGauge::draw(Widgets&w,float core,float progress,bool valid,bool 
  if(valid&&trend!=2){if(trend==0)w.line(140,238,152,238,2,Theme::Grey);else {int sign=trend>0?1:-1;w.line(140,237+sign*3,146,237-sign*3,2,Theme::Grey);w.line(146,237-sign*3,152,237+sign*3,2,Theme::Grey);}}
  w.centered(146,254,"LETZTES UPDATE",SmallFont,Theme::Grey);w.centered(146,274,age,SmallFont,Theme::White);w.present();
 }
+
+void TemperatureGauge::drawAge(Widgets&w,const String&age){
+ // This rectangle sits below the ring and trend arrow; updating age must not redraw them.
+ w.region(184,318,284,46);
+ w.centered(146,0,"LETZTES UPDATE",SmallFont,Theme::Grey);
+ w.centered(146,20,age,SmallFont,Theme::White);w.present();
+}

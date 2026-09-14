@@ -1,4 +1,4 @@
-# BBQ Control 2.1 – UI nach Designvorlage
+# BBQ Control 2.1.1 – UI nach Designvorlage
 
 Arduino-Projekt fuer die Waveshare ESP32-S3 Smart 86 Box (480 x 480).
 Die vom Nutzer bestaetigte Displayinitialisierung und die DMA-Bounce-Puffer bleiben unveraendert.
@@ -68,7 +68,7 @@ Neue Zielalarme wecken ebenfalls. Anzeigeoptionen sind lokal.
 
 Die bewaehrten 8 MHz Pixeltakt und 10 DMA-Bounce-Zeilen bleiben erhalten.
 Das Panel erreicht damit nominal etwa 28 Hz; 60 FPS sind mit diesen Timings nicht erreichbar.
-Der UI-Takt ist 33 ms, reale Geschwindigkeit und Touch-Verhalten muessen am Geraet
+Der UI-Datentakt ist 200 ms (Touch wird weiterhin in jeder Schleife abgefragt), reale Geschwindigkeit und Touch-Verhalten muessen am Geraet
 geprueft werden. Kompilierung ersetzt keinen Hardwaretest.
 
 ## Module
@@ -78,3 +78,31 @@ HistoryChart verwaltet und zeichnet Messreihen, StatusBar zeichnet die Navigatio
 SettingsPage die Einstellungszeilen, TouchManager erkennt Gesten und Widgets stellt
 geglattete Zeichenfunktionen bereit. UiState speichert lokale Einstellungen im NVS.
 HomeAssistant, WiFiManager und Display bleiben die bestehende Hardware-/Datenbasis.
+
+## HA-Stabilitaetskorrektur
+
+Ein einzelner HTTP-/Parsefehler loescht keine gueltigen Messwerte mehr. Das HA-Symbol
+wird orange, solange noch eine gueltige Antwort innerhalb der bestehenden 90-Sekunden-Frist
+vorliegt; unter Menue / Info steht der Fehlercode. Alter und Messzeit werden durch Fehler
+nicht zurueckgesetzt. Nach Ablauf der Frist, bei WLAN-Ausfall oder abgelehntem Token werden
+keine aktuellen Messwerte angezeigt. Eine erfolgreiche Antwort ersetzt die Werte wieder.
+
+Die aufwendige UI-Datenbindung laeuft mit 5 statt etwa 30 Durchlaeufen pro Sekunde.
+Das reduziert temporaere String-Allokationen und CPU-Last. Das Design bleibt gleich;
+Ringuebergaenge haben weniger Animationsschritte. WLAN- und Displayinitialisierung bleiben
+unveraendert. HTTP-Fehler und Wiederherstellung werden im seriellen Monitor mit 115200 Baud
+protokolliert (Code, Dauer, RSSI, freier Heap), ohne Token oder Antwortinhalt auszugeben.
+Die Ursache der beobachteten HA-Abbrueche ist ohne Geraetelogs noch nicht abschliessend belegt.
+
+Diagnosecodes: -1001 ungueltige/zu grosse HA-Antwort, -1002 HTTP-Initialisierung,
+-1003 HA-Aufgabe/Queue konnte nicht angelegt werden. HTTP-Statuscodes (z.B. 401, 503)
+und die negativen HTTPClient-Transportcodes (z.B. -11 Lese-Timeout) bleiben unterscheidbar.
+
+Der Sekundenzaehler unter dem Ring aktualisiert separat nur 284 x 46 statt
+284 x 312 Pixel. Unveraenderte Ringgrafik wird dadurch nicht jede Sekunde neu
+uebertragen (rund 85 % weniger Pixel je reiner Altersaktualisierung).
+
+Bei Fehler -1 (TCP-Aufbau fehlgeschlagen) wird genau einmal nach 500 ms erneut
+verbunden, sofern WLAN noch steht. Das Connect-Timeout betraegt 6 statt 3 Sekunden;
+der Lese-Timeout bleibt 3 Sekunden. Es gibt keinen WLAN-Neustart und keine schnelle
+Endlosschleife. Danach gilt wieder das normale Abfrageintervall von 10 Sekunden.
